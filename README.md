@@ -17,7 +17,7 @@
 ## 安装
 
 ```bash
-npm install -g opencommands
+npm install -g @dreamcats/opencommands
 ```
 
 ## 快速开始

@@ -1,5 +1,5 @@
 {
-  "name": "opencommands",
+  "name": "@dreamcats/opencommands",
   "version": "0.1.0",
   "description": "Universal command loader for AI assistants",
   "main": "dist/index.js",
