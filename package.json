@@ -1,49 +1,28 @@
 {
   "name": "@dreamcats/opencommands",
-  "version": "0.1.0",
-  "description": "Universal command loader for AI assistants",
-  "main": "dist/index.js",
+  "version": "2.0.0",
+  "description": "Simplified command loader for AI coding agents",
+  "type": "module",
   "bin": {
-    "opencommands": "dist/cli.js"
+    "opencommands": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "vitest",
-    "test:coverage": "vitest --coverage",
-    "lint": "eslint src --ext .ts",
-    "lint:fix": "eslint src --ext .ts --fix",
-    "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
-  },
-  "keywords": [
-    "cli",
-    "commands",
-    "ai",
-    "assistant",
-    "slash-commands"
-  ],
-  "author": "OpenCommands Team",
-  "license": "MIT",
-  "devDependencies": {
-    "@types/node": "^20.10.0",
-    "@typescript-eslint/eslint-plugin": "^6.13.0",
-    "@typescript-eslint/parser": "^6.13.0",
-    "eslint": "^8.54.0",
-    "tsup": "^8.0.0",
-    "typescript": "^5.3.0",
-    "vitest": "^1.0.0",
-    "@vitest/coverage-v8": "^1.0.0"
+    "test": "node --test",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "commander": "^11.1.0",
-    "yaml": "^2.3.4",
+    "@inquirer/prompts": "^8.1.0",
     "chalk": "^5.3.0",
-    "ora": "^7.0.1",
-    "inquirer": "^9.2.12",
-    "fuse.js": "^7.0.0",
-    "simple-git": "^3.21.0",
-    "glob": "^10.3.0"
+    "commander": "^11.1.0",
+    "ora": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
   },
   "engines": {
     "node": ">=18.0.0"

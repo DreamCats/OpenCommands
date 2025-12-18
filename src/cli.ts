@@ -1,115 +1,148 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { getCommandManager } from './commands.js';
+import { installFromGit } from './install.js';
+import { executeCommand } from './executor.js';
 import chalk from 'chalk';
-import { installCommand } from './commands/install.js';
-import { listCommand } from './commands/list.js';
-import { searchCommand } from './commands/search.js';
-import { initCommand } from './commands/init.js';
-import { removeCommand } from './commands/remove.js';
-import { syncCommand } from './commands/sync.js';
-import { configCommand } from './commands/config.js';
-import { logger } from './utils/index.js';
 
 const program = new Command();
 
 program
   .name('opencommands')
-  .description('Universal command loader for AI assistants')
-  .version('0.1.0')
-  .option('-v, --verbose', 'Enable verbose logging')
-  .option('-q, --quiet', 'Suppress output')
-  .hook('preAction', (thisCommand) => {
-    const opts = thisCommand.opts();
-    if (opts.verbose) {
-      logger.setLevel(3); // DEBUG
-    } else if (opts.quiet) {
-      logger.setLevel(0); // ERROR only
+  .description('Simple command loader for AI coding agents')
+  .version('2.0.0');
+
+/**
+ * 列出所有命令
+ */
+program
+  .command('list')
+  .alias('ls')
+  .description('List all available commands')
+  .action(async () => {
+    const manager = getCommandManager();
+    await manager.init();
+
+    const commands = manager.getAllCommands();
+
+    if (commands.length === 0) {
+      console.log(chalk.yellow('No commands found.'));
+      console.log('Install commands with: opencommands install <git-repo>');
+      return;
+    }
+
+    console.log(chalk.bold(`\nAvailable commands (${commands.length}):\n`));
+
+    for (const cmd of commands) {
+      console.log(`  ${chalk.green(cmd.name.padEnd(20))} ${chalk.gray(cmd.description)}`);
+    }
+
+    console.log('');
+  });
+
+/**
+ * 搜索命令
+ */
+program
+  .command('search <query>')
+  .alias('find')
+  .description('Search for commands')
+  .action(async (query: string) => {
+    const manager = getCommandManager();
+    await manager.init();
+
+    const results = manager.search(query);
+
+    if (results.length === 0) {
+      console.log(chalk.yellow(`No commands found matching "${query}"`));
+      return;
+    }
+
+    console.log(chalk.bold(`\nFound ${results.length} command(s):\n`));
+
+    for (const cmd of results) {
+      console.log(`  ${chalk.green(cmd.name.padEnd(20))} ${chalk.gray(cmd.description)}`);
+    }
+
+    console.log('');
+  });
+
+/**
+ * 安装命令
+ */
+program
+  .command('install <git-url>')
+  .description('Install commands from Git repository')
+  .option('-g, --global', 'Install to user directory')
+  .option('-y, --yes', 'Skip interactive selection, install all commands found')
+  .action(async (gitUrl: string, options: { global?: boolean; yes?: boolean }) => {
+    try {
+      await installFromGit(gitUrl, { global: options.global, yes: options.yes });
+    } catch (error: any) {
+      console.error(chalk.red('Installation failed:'), error.message);
+      process.exit(1);
     }
   });
 
-// Initialize command
+/**
+ * 执行命令
+ */
 program
-  .command('init')
-  .description('Initialize opencommands configuration')
-  .option('-g, --global', 'Initialize global config')
-  .option('-d, --dir <directory>', 'Command directory path')
-  .action(initCommand);
+  .command('run <command>')
+  .alias('exec')
+  .description('Execute a command')
+  .allowUnknownOption()
+  .action(async (commandName: string, _, cmd: Command) => {
+    const manager = getCommandManager();
+    await manager.init();
 
-// Install command
+    const command = manager.getCommand(commandName);
+
+    if (!command) {
+      console.error(chalk.red(`Command "${commandName}" not found.`));
+      console.log('Use "opencommands list" to see available commands.');
+      process.exit(1);
+    }
+
+    try {
+      await executeCommand(command, process.argv.slice(4));
+    } catch (error: any) {
+      console.error(chalk.red('Execution failed:'), error.message);
+      process.exit(1);
+    }
+  });
+
+/**
+ * 显示命令内容（供AI使用）
+ */
 program
-  .command('install <source>')
-  .description('Install commands from a source (Git repo, local path, or NPM package)')
-  .option('-n, --namespace <namespace>', 'Install to specific namespace')
-  .option('-g, --global', 'Install to global directory')
-  .option('-f, --force', 'Force installation even if command exists')
-  .option('-a, --all', 'Install all commands without prompting')
-  .action(installCommand);
+  .command('show <command>')
+  .description('Show command content')
+  .action(async (commandName: string) => {
+    const manager = getCommandManager();
+    await manager.init();
 
-// List command
-program
-  .command('list')
-  .description('List installed commands')
-  .option('-n, --namespace <namespace>', 'Filter by namespace')
-  .option('-t, --tag <tag>', 'Filter by tag')
-  .option('-u, --user', 'List commands from user-level directory only')
-  .option('--git', 'List commands from configured Git repositories')
-  .option('--json', 'Output as JSON')
-  .option('--stats', 'Show statistics')
-  .action(listCommand);
+    const command = manager.getCommand(commandName);
 
-// Search command
-program
-  .command('search <query>')
-  .description('Search for commands')
-  .option('-f, --fuzzy', 'Enable fuzzy search')
-  .option('-l, --limit <number>', 'Limit results', '10')
-  .option('--json', 'Output as JSON')
-  .option('--sync', 'Enable interactive sync of found commands to project directory')
-  .action(searchCommand);
+    if (!command) {
+      console.error(chalk.red(`Command "${commandName}" not found.`));
+      process.exit(1);
+    }
 
-// Remove command
-program
-  .command('remove <command>')
-  .alias('rm')
-  .description('Remove an installed command')
-  .option('-n, --namespace <namespace>', 'Command namespace')
-  .option('-f, --force', 'Force removal without confirmation')
-  .action(removeCommand);
+    console.log(command.content);
+  });
 
-// Sync command
-program
-  .command('sync')
-  .description('Sync commands with sources')
-  .option('--dry-run', 'Show what would be synced without making changes')
-  .option('--source <source>', 'Sync specific source only')
-  .option('--claude', 'Generate Claude Code compatibility files')
-  .option('--local-only', 'Only sync local commands, skip remote sources')
-  .action(syncCommand);
-
-// Config command
-program
-  .command('config')
-  .description('Manage configuration')
-  .option('--get <key>', 'Get configuration value')
-  .option('--set <key> <value>', 'Set configuration value')
-  .option('--list', 'List all configuration')
-  .action(configCommand);
-
-// Error handling
-program.configureOutput({
-  writeErr: (str) => process.stderr.write(chalk.red(str))
+// 错误处理
+program.exitOverride((err) => {
+  if (err.code === 'commander.helpDisplayed' || err.code === 'commander.version') {
+    process.exit(0);
+  }
+  if (err.code === 'commander.missingArgument') {
+    console.error(chalk.red('Error:'), err.message);
+    process.exit(1);
+  }
+  process.exit(err.exitCode || 1);
 });
 
-process.on('uncaughtException', (error) => {
-  logger.error('Uncaught exception:', error);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason) => {
-  logger.error('Unhandled rejection:', reason);
-  process.exit(1);
-});
-
-// Parse arguments
 program.parse();
